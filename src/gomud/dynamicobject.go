@@ -3,7 +3,10 @@ package gomud
 type DynamicObject interface {
 	Controller() Controller
 	SetController(Controller)
-	Location() /*...*/
+	Edge() *Edge
+	SetEdge(*Edge)
+	Place() *Place
+	SetPlace(*Place)
 	Notify(Notification)
 	State() DynamicObjectState
 }

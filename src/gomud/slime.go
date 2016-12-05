@@ -8,7 +8,8 @@ type Slime struct {
 	ctrl  Controller
 	id    int
 	state SlimeState
-	// location Location
+	place *Place
+	edge  *Edge
 }
 
 func (s *Slime) Controller() Controller {
@@ -20,8 +21,19 @@ func (s *Slime) SetController(c Controller) {
 	}
 	s.ctrl = c
 }
-func (s *Slime) Location() {
-	return
+func (s *Slime) Edge() *Edge {
+	return s.edge
+}
+func (s *Slime) SetEdge(e *Edge) {
+	s.place = nil
+	s.edge = e
+}
+func (s *Slime) Place() *Place {
+	return s.place
+}
+func (s *Slime) SetPlace(p *Place) {
+	s.edge = nil
+	s.place = p
 }
 func (s *Slime) Notify(n Notification) {
 	if s.ctrl != nil {

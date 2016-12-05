@@ -1,5 +1,7 @@
 package gomud
 
+import "fmt"
+
 func NewSimpleAIController(obj *Slime, init interface{}) (Controller, error) {
 	saic := &simpleAIController{
 		object:     obj,
@@ -48,6 +50,8 @@ func (saic *simpleAIController) controlLoop() {
 
 	for notification := range saic.notifyChan {
 		switch notification.(type) {
+		case Bark:
+			fmt.Println("Heard a bark?")
 		case PoisonPill:
 			return
 		default:

@@ -9,8 +9,20 @@ import (
 )
 
 func innerMain() error {
+	// Create two Places, with an interconnecting Edge
+	p0 := gomud.NewPlace("The center of the universe; an infinity of light.")
+	p1 := gomud.NewPlace("Next to the center of the universe; slightly less light.")
+	p1.X = 1
+	p1.Y = 1
+	_, err := gomud.NewEdge(p0, p1, true, true)
+	if err != nil {
+		return err
+	}
+
+	// Create a Slime with a SimpleAIController
 	sState := gomud.SlimeState{Size: 1}
 	s := gomud.NewSlime(0, sState)
+	s.SetPlace(p0)
 	sc, err := gomud.NewSimpleAIController(s, nil)
 	if err != nil {
 		return err
