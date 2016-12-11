@@ -4,51 +4,64 @@ import (
 	"fmt"
 	"os"
 
-	"gomud"
+	"gomud/controller"
+	"gomud/model"
 	"time"
 )
 
-func innerMain() error {
+func genExampleWorld() (*model.World, error) {
+	world := model.NewWorld()
+
 	// Create two Places, with an interconnecting Edge
-	p0 := gomud.NewPlace("The center of the universe; an infinity of light.")
-	p1 := gomud.NewPlace("Next to the center of the universe; slightly less light.")
+	p0 := model.NewPlace(0, "The center of the universe; an infinity of light.")
+	p1 := model.NewPlace(1, "Next to the center of the universe; slightly less light.")
 	p1.X = 1
 	p1.Y = 1
-	_, err := gomud.NewEdge(p0, p1, true, true)
+	e, err := model.NewEdge(p0, p1, true, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	world.Places[p0.ID] = p0
+	world.Places[p1.ID] = p1
+	world.Edges[e.ID()] = e
 
 	// Create a Slime with a SimpleAIController
-	sState := gomud.SlimeState{Size: 1}
-	s := gomud.NewSlime(0, sState)
-	s.SetPlace(p0)
-	sc, err := gomud.NewSimpleAIController(s, nil)
+	s := model.NewSlime(1000, 1)
+	world.DynamicObjects[s.ID()] = s
+	sc, err := controller.NewSimpleAIController(s, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	sc.Start()
 
+	return world, nil
+}
+
+func innerMain() error {
+	world, err := genExampleWorld()
+	if err != nil {
+		return err
+	}
+
+	// Create an EventNotifier to broadcast events to concerned
+	// objects
+	en := model.NewEventNotifier(world)
+	en.Start()
+
+	// Create an EventProcessor to process and persist changes
+	// to the world
+	ep := model.NewSingletonEventProcessor(world, en)
+	ep.Start()
+	eq := ep.EventQueue()
+
+	setPlace := model.NewSetPlace(world.DynamicObjects[1000], world.Places[0])
+	eq <- setPlace
+
 	duration, _ := time.ParseDuration("1s")
 	ticker := time.NewTicker(duration)
-	i := 1
 	for now := range ticker.C {
 		fmt.Println("Tick!")
-		tick := gomud.TimeTick{When: now}
-		s.Controller().Notify(tick)
-		if i%3 == 0 {
-			b := gomud.Bark{
-				Sound: "Woof!",
-			}
-			s.Controller().Notify(b)
-		}
-		if i%15 == 0 {
-			sc.Stop()
-		}
-		if i%18 == 0 {
-			return nil
-		}
-		i++
+		eq <- model.TimeTick{When: now}
 	}
 	return nil
 }
