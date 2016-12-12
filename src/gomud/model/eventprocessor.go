@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"gomud/supervisor"
+	"runtime/debug"
 )
 
 const EventQueueMaxDepth = 100
@@ -15,7 +16,7 @@ type EventProcessor struct {
 	eventNotifier  *EventNotifier
 	eventPersister *EventPersister
 	eventQueue     chan Event
-	failChan       chan supervisor.ExitStatus
+	failChan       chan supervisor.PanicWithStack
 }
 
 func NewSingletonEventProcessor(world *World, en *EventNotifier, eper *EventPersister) *EventProcessor {
@@ -36,7 +37,7 @@ func NewEventProcessor(world *World, en *EventNotifier, eper *EventPersister) *E
 }
 func (ep *EventProcessor) init() {
 	ep.eventQueue = make(chan Event, EventQueueMaxDepth)
-	ep.failChan = make(chan supervisor.ExitStatus, 0)
+	ep.failChan = make(chan supervisor.PanicWithStack)
 }
 
 // Methods to implement Supervisable interface
@@ -49,20 +50,24 @@ func (ep *EventProcessor) Stop() {
 	<-ep.failChan // swallow the supervisor.FailsafeExit
 	close(ep.failChan)
 }
-func (ep *EventProcessor) FailChan() <-chan supervisor.ExitStatus {
+func (ep *EventProcessor) FailChan() <-chan supervisor.PanicWithStack {
 	return ep.failChan
 }
 
 // Functional methods
 func (ep *EventProcessor) processLoop() {
 	defer func() {
-		// FIXME this code is really needed until we have a
-		// FIXME supervisor to restart us and report errors/stacktraces
-		fmt.Println("OMG EVENTPROCESSOR DIED")
 		if r := recover(); r != nil {
-			panic(r)
+			pws := supervisor.PanicWithStack{
+				PReason: r,
+				Stack:   debug.Stack(),
+			}
+			ep.failChan <- pws
+			// FIXME here til we're actually supervised
+			panic(pws)
+		} else {
+			close(ep.failChan)
 		}
-		ep.failChan <- supervisor.FailsafeExit
 	}()
 
 	enq := ep.eventNotifier.EventQueue()
@@ -76,7 +81,6 @@ func (ep *EventProcessor) processLoop() {
 			se := event.(SetEdge)
 			se.object.setEdge(se.edge)
 		case PoisonPill:
-			ep.failChan <- supervisor.NormalExit
 			return
 		case InsertObject:
 			io := event.(InsertObject)

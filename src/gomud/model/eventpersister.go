@@ -5,17 +5,18 @@ import (
 	"fmt"
 	"gomud/supervisor"
 	"os"
+	"runtime/debug"
 )
 
 type EventPersister struct {
 	eventQueue chan Event
-	failChan   chan supervisor.ExitStatus
+	failChan   chan supervisor.PanicWithStack
 }
 
 func NewEventPersister() *EventPersister {
 	return &EventPersister{
 		eventQueue: make(chan Event, EventQueueMaxDepth),
-		failChan:   make(chan supervisor.ExitStatus, 0),
+		failChan:   make(chan supervisor.PanicWithStack),
 	}
 }
 
@@ -25,13 +26,17 @@ func (ep *EventPersister) Start() {
 
 func (ep *EventPersister) persistLoop() {
 	defer func() {
-		// FIXME this code is really needed until we have a
-		// FIXME supervisor to restart us and report errors/stacktraces
-		fmt.Println("OMG EVENTNOTIFIER DIED")
 		if r := recover(); r != nil {
-			panic(r)
+			pws := supervisor.PanicWithStack{
+				PReason: r,
+				Stack:   debug.Stack(),
+			}
+			ep.failChan <- pws
+			// FIXME here until we're actually supervised
+			panic(pws)
+		} else {
+			close(ep.failChan)
 		}
-		ep.failChan <- supervisor.FailsafeExit
 	}()
 
 	fd, err := os.Create("persist.log")

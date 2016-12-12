@@ -3,19 +3,20 @@ package model
 import (
 	"fmt"
 	"gomud/supervisor"
+	"runtime/debug"
 )
 
 type EventNotifier struct {
 	world      *World
 	eventQueue chan Event
-	failChan   chan supervisor.ExitStatus
+	failChan   chan supervisor.PanicWithStack
 }
 
 func NewEventNotifier(world *World) *EventNotifier {
 	return &EventNotifier{
 		world:      world,
 		eventQueue: make(chan Event, EventQueueMaxDepth),
-		failChan:   make(chan supervisor.ExitStatus, 0),
+		failChan:   make(chan supervisor.PanicWithStack),
 	}
 }
 func (en *EventNotifier) Start() {
@@ -27,25 +28,28 @@ func (en *EventNotifier) Stop() {
 	<-en.failChan // swallow the supervisor.FailsafeExit
 	close(en.failChan)
 }
-func (en *EventNotifier) FailChan() <-chan supervisor.ExitStatus {
+func (en *EventNotifier) FailChan() <-chan supervisor.PanicWithStack {
 	return en.failChan
 }
 
 func (en *EventNotifier) notifyLoop() {
 	defer func() {
-		// FIXME this code is really needed until we have a
-		// FIXME supervisor to restart us and report errors/stacktraces
-		fmt.Println("OMG EVENTNOTIFIER DIED")
 		if r := recover(); r != nil {
-			panic(r)
+			pws := supervisor.PanicWithStack{
+				PReason: r,
+				Stack:   debug.Stack(),
+			}
+			en.failChan <- pws
+			// FIXME here til we're actually supervised
+			panic(pws)
+		} else {
+			close(en.failChan)
 		}
-		en.failChan <- supervisor.FailsafeExit
 	}()
 
 	for event := range en.eventQueue {
 		switch event.(type) {
 		case PoisonPill:
-			en.failChan <- supervisor.NormalExit
 			return
 		case TimeTick:
 			en.handleTimeTick(event)
