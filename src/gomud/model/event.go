@@ -74,3 +74,27 @@ func NewSetEdge(object DynamicObject, edge Edge, fromPlace *Place) SetEdge {
 		fromPlace:   fromPlace,
 	}
 }
+
+type InsertObject struct {
+	NewObject DynamicObject
+}
+
+func (io InsertObject) ObjectID() ObjectID {
+	return io.NewObject.ID()
+}
+
+type InsertPlace struct {
+	NewPlace *Place
+}
+
+func (ip InsertPlace) ObjectID() ObjectID {
+	return NonObjectID
+}
+
+type InsertEdge struct {
+	NewEdge *edge
+}
+
+func (ie InsertEdge) ObjectID() ObjectID {
+	return NonObjectID
+}

@@ -1,9 +1,12 @@
 package model
 
+// This is likely to change, later on, to something like a UUID
+// that can be generated safely without consulting a global state.
 type ObjectID uint64
 
 const (
-	DoNotRouteID = iota
+	NonObjectID = iota
+	DoNotRouteID
 	BroadcastID
 )
 

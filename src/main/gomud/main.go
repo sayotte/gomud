@@ -48,9 +48,13 @@ func innerMain() error {
 	en := model.NewEventNotifier(world)
 	en.Start()
 
+	// Create an EventPersister to journal all events
+	eper := model.NewEventPersister()
+	eper.Start()
+
 	// Create an EventProcessor to process and persist changes
 	// to the world
-	ep := model.NewSingletonEventProcessor(world, en)
+	ep := model.NewSingletonEventProcessor(world, en, eper)
 	ep.Start()
 	eq := ep.EventQueue()
 
@@ -61,7 +65,7 @@ func innerMain() error {
 	ticker := time.NewTicker(duration)
 	for now := range ticker.C {
 		fmt.Println("Tick!")
-		eq <- model.TimeTick{When: now}
+		eq <- model.NewTimeTick(now)
 	}
 	return nil
 }

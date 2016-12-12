@@ -11,23 +11,25 @@ const EventQueueMaxDepth = 100
 var singletonEventProcessor *EventProcessor
 
 type EventProcessor struct {
-	world         *World
-	eventNotifier *EventNotifier
-	eventQueue    chan Event
-	failChan      chan supervisor.ExitStatus
+	world          *World
+	eventNotifier  *EventNotifier
+	eventPersister *EventPersister
+	eventQueue     chan Event
+	failChan       chan supervisor.ExitStatus
 }
 
-func NewSingletonEventProcessor(world *World, en *EventNotifier) *EventProcessor {
-	singletonEventProcessor = NewEventProcessor(world, en)
+func NewSingletonEventProcessor(world *World, en *EventNotifier, eper *EventPersister) *EventProcessor {
+	singletonEventProcessor = NewEventProcessor(world, en, eper)
 	return singletonEventProcessor
 }
 func GetSingletonEventProcessor() *EventProcessor {
 	return singletonEventProcessor
 }
-func NewEventProcessor(world *World, en *EventNotifier) *EventProcessor {
+func NewEventProcessor(world *World, en *EventNotifier, eper *EventPersister) *EventProcessor {
 	ep := &EventProcessor{
-		eventNotifier: en,
-		world:         world,
+		eventNotifier:  en,
+		eventPersister: eper,
+		world:          world,
 	}
 	ep.init()
 	return ep
@@ -64,6 +66,7 @@ func (ep *EventProcessor) processLoop() {
 	}()
 
 	enq := ep.eventNotifier.EventQueue()
+	eperq := ep.eventPersister.EventQueue()
 	for event := range ep.eventQueue {
 		switch event.(type) {
 		case SetPlace:
@@ -75,15 +78,22 @@ func (ep *EventProcessor) processLoop() {
 		case PoisonPill:
 			ep.failChan <- supervisor.NormalExit
 			return
+		case InsertObject:
+			io := event.(InsertObject)
+			ep.handleInsertObject(io)
 		default:
 			// First, journal and replicate
 			// Second, decide if it's a change; if so, effect the change
 			// Third, pass on to the notification system
 			fmt.Printf("EventProcessor not processing this: %v\n", event)
 		}
+		eperq <- event
 		enq <- event
 	}
 }
 func (ep *EventProcessor) EventQueue() chan<- Event {
 	return ep.eventQueue
+}
+func (ep *EventProcessor) handleInsertObject(io InsertObject) {
+	return // stub
 }
