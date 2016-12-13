@@ -1,4 +1,4 @@
-package model
+package gomud
 
 import "time"
 
@@ -7,17 +7,15 @@ type Event interface {
 }
 
 type TimeTick struct {
-	OID  ObjectID
 	Type string
 	When time.Time
 }
 
 func (tt TimeTick) ObjectID() ObjectID {
-	return tt.ObjectID()
+	return BroadcastID
 }
 func NewTimeTick(when time.Time) TimeTick {
 	return TimeTick{
-		OID:  BroadcastID,
 		Type: "timetick",
 		When: when,
 	}
@@ -55,7 +53,7 @@ type SetEdge struct {
 	object      DynamicObject
 	Type        string
 	EID         EdgeID
-	edge        Edge
+	edge        *Edge
 	FromPlaceID PlaceID
 	fromPlace   *Place
 }
@@ -63,12 +61,12 @@ type SetEdge struct {
 func (se SetEdge) ObjectID() ObjectID {
 	return se.OID
 }
-func NewSetEdge(object DynamicObject, edge Edge, fromPlace *Place) SetEdge {
+func NewSetEdge(object DynamicObject, edge *Edge, fromPlace *Place) SetEdge {
 	return SetEdge{
 		OID:         object.ID(),
 		object:      object,
 		Type:        "setedge",
-		EID:         edge.ID(),
+		EID:         edge.ID,
 		edge:        edge,
 		FromPlaceID: fromPlace.ID,
 		fromPlace:   fromPlace,
@@ -92,7 +90,7 @@ func (ip InsertPlace) ObjectID() ObjectID {
 }
 
 type InsertEdge struct {
-	NewEdge *edge
+	NewEdge *Edge
 }
 
 func (ie InsertEdge) ObjectID() ObjectID {

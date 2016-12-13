@@ -1,4 +1,4 @@
-package model
+package gomud
 
 import (
 	"encoding/json"
@@ -39,13 +39,35 @@ func (ep *EventPersister) persistLoop() {
 		}
 	}()
 
-	fd, err := os.Create("persist.log")
-	if err != nil {
-		panic(err)
-	}
-	defer fd.Close()
+	fdMap := make(map[ObjectID]*os.File)
+	defer func(fdMap map[ObjectID]*os.File) {
+		for _, fd := range fdMap {
+			fd.Close()
+		}
+	}(fdMap)
 
 	for event := range ep.eventQueue {
+		switch event.ObjectID() {
+		case NonObjectID:
+			continue
+		case DoNotRouteID:
+			continue
+		case BroadcastID:
+			continue
+		}
+
+		var fd *os.File
+		var ok bool
+		var err error
+		fd, ok = fdMap[event.ObjectID()]
+		if !ok {
+			fd, err = os.Create(fmt.Sprintf("%v-persist.log", event.ObjectID()))
+			if err != nil {
+				panic(err)
+			}
+			fdMap[event.ObjectID()] = fd
+		}
+
 		fmt.Printf("EventPersister handling: %v\n", event)
 		b, err := json.Marshal(event)
 		if err != nil {

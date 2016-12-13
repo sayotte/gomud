@@ -1,4 +1,4 @@
-package model
+package gomud
 
 // This is likely to change, later on, to something like a UUID
 // that can be generated safely without consulting a global state.
@@ -14,13 +14,13 @@ type DynamicObject interface {
 	ID() ObjectID
 	Controller() ModelController
 	SetController(ModelController)
-	Edge() Edge
-	setEdge(Edge)
+	Edge() *Edge
+	setEdge(*Edge)
 	Place() *Place
 	setPlace(*Place)
 	Notify(Event)
-	// serialize creates a snapshot of the object
-	serialize() ([]byte, error)
-	// deserialize restores the object from a snapshot
-	deserialize([]byte) error
+	//// serialize creates a snapshot of the object
+	//MarshalJSON() ([]byte, error)
+	//// deserialize restores the object from a snapshot
+	//UnmarshalJSON([]byte) error
 }

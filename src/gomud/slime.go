@@ -1,7 +1,6 @@
-package model
+package gomud
 
 import (
-	"encoding/json"
 	"sync"
 )
 
@@ -10,7 +9,7 @@ type Slime struct {
 	id     ObjectID
 	size   int
 	place  *Place
-	edge   Edge
+	edge   *Edge
 	rwlock sync.RWMutex
 }
 
@@ -26,13 +25,13 @@ func (s *Slime) SetController(c ModelController) {
 	}
 	s.ctrl = c
 }
-func (s *Slime) Edge() Edge {
+func (s *Slime) Edge() *Edge {
 	s.rwlock.RLock()
 	e := s.edge
 	s.rwlock.Unlock()
 	return e
 }
-func (s *Slime) setEdge(e Edge) {
+func (s *Slime) setEdge(e *Edge) {
 	s.rwlock.Lock()
 	if s.place != nil {
 		s.place.RemoveObject(s)
@@ -63,12 +62,13 @@ func (s *Slime) Notify(e Event) {
 		s.ctrl.Notify(e)
 	}
 }
-func (s *Slime) serialize() ([]byte, error) {
-	return json.Marshal(s)
-}
-func (s *Slime) deserialize(b []byte) error {
-	return json.Unmarshal(b, s)
-}
+
+//func (s *Slime) MarshalJSON() ([]byte, error) {
+//	return json.Marshal(s)
+//}
+//func (s *Slime) UnmarshalJSON(b []byte) error {
+//	return json.Unmarshal(b, s)
+//}
 func NewSlime(id ObjectID, size int) *Slime {
 	return &Slime{
 		id:   id,

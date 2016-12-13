@@ -1,4 +1,4 @@
-package model
+package gomud
 
 import (
 	"fmt"
@@ -99,5 +99,13 @@ func (ep *EventProcessor) EventQueue() chan<- Event {
 	return ep.eventQueue
 }
 func (ep *EventProcessor) handleInsertObject(io InsertObject) {
+	o := io.NewObject
+	ep.world.DynamicObjects[o.ID()] = o
+	// Cheat and always load the same kind of controller
+	sc, err := NewSimpleAIController(o, nil)
+	if err != nil {
+		panic(err)
+	}
+	sc.Start()
 	return // stub
 }

@@ -1,4 +1,4 @@
-package model
+package gomud
 
 import (
 	"fmt"

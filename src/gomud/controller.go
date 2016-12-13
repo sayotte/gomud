@@ -1,13 +1,11 @@
-package controller
-
-import "gomud/model"
+package gomud
 
 const NotifyQueueLength = 100
 
 type Controller interface {
 	FailChan() <-chan struct{}
-	Notify(model.Event)
-	Object() model.DynamicObject
+	Notify(Event)
+	Object() DynamicObject
 	Start()
 	Stop()
 }

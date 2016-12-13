@@ -1,16 +1,15 @@
-package controller
+package gomud
 
 import (
 	"fmt"
-	"gomud/model"
 	"math/rand"
 )
 
-func NewSimpleAIController(obj *model.Slime, init interface{}) (Controller, error) {
+func NewSimpleAIController(obj DynamicObject, init interface{}) (Controller, error) {
 	saic := &simpleAIController{
 		object:     obj,
 		failChan:   make(chan struct{}, 0),
-		notifyChan: make(chan model.Event, NotifyQueueLength),
+		notifyChan: make(chan Event, NotifyQueueLength),
 		init:       init,
 	}
 	if err := saic.initialize(); err != nil {
@@ -21,9 +20,9 @@ func NewSimpleAIController(obj *model.Slime, init interface{}) (Controller, erro
 }
 
 type simpleAIController struct {
-	object     model.DynamicObject
+	object     DynamicObject
 	failChan   chan struct{}
-	notifyChan chan model.Event
+	notifyChan chan Event
 	init       interface{}
 }
 
@@ -34,17 +33,17 @@ func (saic *simpleAIController) initialize() error {
 func (saic *simpleAIController) FailChan() <-chan struct{} {
 	return saic.failChan
 }
-func (saic *simpleAIController) Notify(e model.Event) {
+func (saic *simpleAIController) Notify(e Event) {
 	saic.notifyChan <- e
 }
-func (saic *simpleAIController) Object() model.DynamicObject {
+func (saic *simpleAIController) Object() DynamicObject {
 	return saic.object
 }
 func (saic *simpleAIController) Start() {
 	go saic.controlLoop()
 }
 func (saic *simpleAIController) Stop() {
-	saic.notifyChan <- model.PoisonPill{}
+	saic.notifyChan <- PoisonPill{}
 	<-saic.failChan
 }
 func (saic *simpleAIController) controlLoop() {
@@ -52,11 +51,11 @@ func (saic *simpleAIController) controlLoop() {
 		saic.failChan <- struct{}{}
 	}()
 
-	var destination *model.Place
-	var edge model.Edge
+	var destination *Place
+	var edge *Edge
 	var ticksInPlace int
 	var ticksToStay int
-	ep := model.GetSingletonEventProcessor()
+	ep := GetSingletonEventProcessor()
 	if ep == nil {
 		// If the EventProcessor hasn't been initialized,
 		// exit. If we have a supervisor, we'll be restarted.
@@ -67,24 +66,24 @@ func (saic *simpleAIController) controlLoop() {
 	for notification := range saic.notifyChan {
 		fmt.Printf("SAIC: Received notification: %v\n", notification)
 		switch notification.(type) {
-		case model.TimeTick:
+		case TimeTick:
 			if saic.object.Place() != nil {
 				// We're already in a place if place != nil
 				ticksInPlace++
 				fmt.Printf("SAIC: ticksInPlace:%d, ticksToStay:%d\n", ticksInPlace, ticksToStay)
 				if ticksInPlace > ticksToStay {
 					edge, destination = chooseDestination(saic.object.Place())
-					setEdge := model.NewSetEdge(saic.object, edge, saic.object.Place())
+					setEdge := NewSetEdge(saic.object, edge, saic.object.Place())
 					ep.EventQueue() <- setEdge
 				}
 			} else {
 				// We're on an edge if place == nil
-				setPlace := model.NewSetPlace(saic.object, destination)
+				setPlace := NewSetPlace(saic.object, destination)
 				ep.EventQueue() <- setPlace
 			}
-		case model.PoisonPill:
+		case PoisonPill:
 			return
-		case model.SetPlace:
+		case SetPlace:
 			if notification.ObjectID() == saic.object.ID() {
 				fmt.Println("Arriving...")
 				ticksInPlace = 0
@@ -92,7 +91,7 @@ func (saic *simpleAIController) controlLoop() {
 			} else {
 				fmt.Println("Someone else is arriving!")
 			}
-		case model.SetEdge:
+		case SetEdge:
 			if notification.ObjectID() == saic.object.ID() {
 				fmt.Println("Departing BECAUSE I LIKE ANNA")
 			} else {
@@ -104,7 +103,7 @@ func (saic *simpleAIController) controlLoop() {
 	}
 }
 
-func chooseDestination(p *model.Place) (model.Edge, *model.Place) {
+func chooseDestination(p *Place) (*Edge, *Place) {
 	edges := p.Edges()
 	for _, dest := range edges[0].OutgoingFromPlaces() {
 		if dest != p {

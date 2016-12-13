@@ -1,4 +1,4 @@
-package model
+package gomud
 
 import (
 	"errors"
@@ -16,7 +16,7 @@ type Place struct {
 	// This is a convenience / performance lookup list.
 	// The authoritative incidence of each edge is
 	// stored within the edge itself.
-	outgoingEdges []Edge
+	outgoingEdges []*Edge
 	// This is a convenience / performance lookup list.
 	// The authoritative location for every object is
 	// stored within the object itself.
@@ -36,9 +36,9 @@ func (p *Place) Less(op *Place) bool {
 func (p *Place) Desc() string {
 	return p.desc
 }
-func (p *Place) Edges() []Edge {
+func (p *Place) Edges() []*Edge {
 	p.rwlock.RLock()
-	eList := make([]Edge, len(p.outgoingEdges))
+	eList := make([]*Edge, len(p.outgoingEdges))
 	copy(eList, p.outgoingEdges)
 	p.rwlock.RUnlock()
 	return eList
@@ -72,16 +72,11 @@ func indexOfObjectInSlice(o DynamicObject, oList []DynamicObject) int {
 	return -1
 }
 
-// An Edge is a possibly bidirectional edge in the graph of Places
-type Edge interface {
-	ID() EdgeID
-	OutgoingFromPlaces() []*Place
-	AddObject(DynamicObject)
-	RemoveObject(DynamicObject)
-}
 type EdgeID uint64
-type edge struct {
-	id      EdgeID
+
+// An Edge is a possibly bidirectional edge in the graph of Places
+type Edge struct {
+	ID      EdgeID
 	a       *Place
 	fromA   bool
 	b       *Place
@@ -90,10 +85,7 @@ type edge struct {
 	rwlock  sync.RWMutex
 }
 
-func (e *edge) ID() EdgeID {
-	return e.id
-}
-func (e *edge) OutgoingFromPlaces() []*Place {
+func (e *Edge) OutgoingFromPlaces() []*Place {
 	var places []*Place
 	if e.fromA {
 		places = append(places, e.a)
@@ -103,12 +95,12 @@ func (e *edge) OutgoingFromPlaces() []*Place {
 	}
 	return places
 }
-func (e *edge) AddObject(o DynamicObject) {
+func (e *Edge) AddObject(o DynamicObject) {
 	e.rwlock.Lock()
 	e.objects = append(e.objects, o)
 	e.rwlock.Unlock()
 }
-func (e *edge) RemoveObject(o DynamicObject) {
+func (e *Edge) RemoveObject(o DynamicObject) {
 	e.rwlock.Lock()
 	i := indexOfObjectInSlice(o, e.objects)
 	if i != -1 {
@@ -117,14 +109,14 @@ func (e *edge) RemoveObject(o DynamicObject) {
 	e.rwlock.Unlock()
 }
 
-func NewEdge(a, b *Place, fromA, fromB bool) (Edge, error) {
+func NewEdge(a, b *Place, fromA, fromB bool) (*Edge, error) {
 	if a == nil || b == nil {
 		return nil, fmt.Errorf("Neither a nor b may be nil, got %p / %p", a, b)
 	}
 	if !fromA && !fromB {
 		return nil, errors.New("One of fromA or fromB must be true.")
 	}
-	e := &edge{
+	e := &Edge{
 		a:     a,
 		fromA: fromA,
 		b:     b,
